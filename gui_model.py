@@ -41,10 +41,10 @@ def main(page: ft.Page):
             log("하나는 전체를 위해 전체는 하나를 위해 그러니까 다 채워봐!!!!!!!!")
             return
 
-        os.makedirs(out_path, exist_ok=True)
+        os.makedirs(out_path, exist_ok=True) 
 
         log("두근두근 Segmentation 시작")
-        success = run_segmentation(dicom_path, out_path, organ)
+        success = run_TS(dicom_path, out_path, organ)
         if not success:
             log("또또또 Totalsegmentator 실수했네")
             return
@@ -53,7 +53,7 @@ def main(page: ft.Page):
         stl_path = os.path.join(out_path, f"{organ}.stl")
 
         log("두근두근 STL 변환 중")
-        if nifti_to_stl(nii_path, stl_path):
+        if nii_mask_2_stl(nii_path, stl_path):
             log(f"역시 난 똑띠야: {stl_path}")
         else:
             log("또또또 실수했네")
