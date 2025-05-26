@@ -8,7 +8,7 @@ import pandas as pd
 from tqdm import tqdm
 from nibabel.orientations import aff2axcodes, axcodes2ornt, ornt_transform, apply_orientation
 
-def convert_dicom_to_nifti(dicom_path, output_path):
+def dcm2nii(dicom_path, output_path):
     os.makedirs(output_path, exist_ok=True)
     try:
         dicom2nifti.convert_directory(dicom_path, output_path, reorient=True)
@@ -16,10 +16,10 @@ def convert_dicom_to_nifti(dicom_path, output_path):
             if f.endswith(".nii.gz"):
                 return os.path.join(output_path, f)
     except Exception as e:
-        print(f"❌ DICOM 변환 실패: {dicom_path} - {e}")
+        print(f"DICOM 내놔!!!!!!: {dicom_path} - {e}")
     return None
 
-def reorient_to_match(source_img: nib.Nifti1Image, target_img: nib.Nifti1Image) -> np.ndarray:
+def set_axis(source_img: nib.Nifti1Image, target_img: nib.Nifti1Image) -> np.ndarray:
     source_ax = aff2axcodes(source_img.affine)
     target_ax = aff2axcodes(target_img.affine)
     if source_ax == target_ax:
@@ -30,7 +30,7 @@ def reorient_to_match(source_img: nib.Nifti1Image, target_img: nib.Nifti1Image) 
     data = source_img.get_fdata()
     return apply_orientation(data, transform)
 
-def extract_hu_from_mask(ct_array, mask_array):
+def hu_ext(ct_array, mask_array):
     return ct_array[mask_array > 0].flatten()
 
 def process_all(dicom_root, mask_root, mode, output_root):
@@ -42,13 +42,13 @@ def process_all(dicom_root, mask_root, mode, output_root):
         temp_output_path = os.path.join("temp_nifti", pid, mode)
 
         if not os.path.exists(dicom_path):
-            print(f"❌ DICOM 없음: {dicom_path}")
+            print(f"DICOM을 안 주면 어떻게 해!!!!!!!!!!: {dicom_path}")
             continue
         if not os.path.exists(mask_path):
-            print(f"❌ 마스크 없음: {mask_path}")
+            print(f"마스크 없으면 감기 걸려: {mask_path}")
             continue
 
-        nii_ct_path = convert_dicom_to_nifti(dicom_path, temp_output_path)
+        nii_ct_path = dcm2nii(dicom_path, temp_output_path)
         if not nii_ct_path:
             continue
 
@@ -57,15 +57,15 @@ def process_all(dicom_root, mask_root, mode, output_root):
             mask_img = nib.load(mask_path)
 
             ct_array = ct_img.get_fdata()
-            mask_array = reorient_to_match(mask_img, ct_img)
+            mask_array = set_axis(mask_img, ct_img)
 
             if ct_array.shape != mask_array.shape:
-                print(f"⚠️ Shape mismatch at {pid}: CT{ct_array.shape}, Mask{mask_array.shape}")
+                print(f"무엇이 무엇이 똑같을까 {pid}: CT{ct_array.shape}, Mask{mask_array.shape}")
                 continue
 
-            hu_values = extract_hu_from_mask(ct_array, mask_array)
+            hu_values = hu_ext(ct_array, mask_array)
             if hu_values.size == 0:
-                print(f"⚠️ 마스크가 비어 있음: {pid}")
+                print(f"마스크 없으면 코로나 걸리는데: {pid}")
                 continue
 
             bins = np.arange(-1000, 2001)
@@ -89,7 +89,7 @@ def process_all(dicom_root, mask_root, mode, output_root):
             plt.close()
 
         except Exception as e:
-            print(f"❌ 처리 실패: {pid} - {e}")
+            print(f"디버깅 해야 하네 ㅠㅠㅠㅠㅠㅠㅠㅠㅠㅠㅠ: {pid} - {e}")
             continue
 
 if __name__ == "__main__":
