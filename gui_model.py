@@ -1,76 +1,80 @@
-import flet as ft
+import tkinter as tk
+from tkinter import filedialog, messagebox, scrolledtext
 import os
+
 from segmentation.TS import run_TS
-from converter.meshconverter_nii import nii_mask_2_stl 
+from converter.meshconverter_nii import nii_mask_2_stl
 
-def main(page: ft.Page):
-    page.title = "Pyramid(PyRadioMics-Detector)"
-    page.scroll = ft.ScrollMode.AUTO
+class PyramidApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Pyramid (PyRadioMics-Detector)")
+        
+        tk.Label(root, text="DICOM 폴더").grid(row=0, column=0, sticky="w")
+        self.dicom_dir_entry = tk.Entry(root, width=60)
+        self.dicom_dir_entry.grid(row=0, column=1)
+        tk.Button(root, text="찾기", command=self.choose_dicom_dir).grid(row=0, column=2)
 
-    dicom_dir = ft.TextField(label="DICOM 폴더", read_only=True)
-    output_dir = ft.TextField(label="출력 폴더", read_only=True)
-    organ_field = ft.TextField(label="장기 이름", hint_text="예: pancreas")
-    log_output = ft.TextField(label="로그", multiline=True, read_only=True, expand=True)
+        tk.Label(root, text="출력 폴더").grid(row=1, column=0, sticky="w")
+        self.output_dir_entry = tk.Entry(root, width=60)
+        self.output_dir_entry.grid(row=1, column=1)
+        tk.Button(root, text="찾기", command=self.choose_output_dir).grid(row=1, column=2)
 
-    def log(msg):
-        log_output.value += f"{msg}\n"
-        page.update()
+        tk.Label(root, text="장기 이름").grid(row=2, column=0, sticky="w")
+        self.organ_entry = tk.Entry(root, width=60)
+        self.organ_entry.grid(row=2, column=1, columnspan=2)
 
-    def choose_dicom_dir(e):
-        def result(e: ft.FilePickerResultEvent):
-            if e.path:
-                dicom_dir.value = os.path.normpath(e.path)
-                page.update()
-        page.dialog = ft.FilePicker(on_result=result)
-        page.dialog.get_directory_path()
+        self.start_button = tk.Button(root, text="누르면 시작", command=self.start_pipeline)
+        self.start_button.grid(row=3, column=0, columnspan=3, pady=10)
 
-    def choose_output_dir(e):
-        def result(e: ft.FilePickerResultEvent):
-            if e.path:
-                output_dir.value = os.path.normpath(e.path)
-                page.update()
-        page.dialog = ft.FilePicker(on_result=result)
-        page.dialog.get_directory_path()
+        self.log_output = scrolledtext.ScrolledText(root, height=15, width=80, state='disabled')
+        self.log_output.grid(row=4, column=0, columnspan=3, padx=5, pady=5)
 
-    def start_pipeline(e):
-        dicom_path = dicom_dir.value
-        out_path = output_dir.value
-        organ = organ_field.value.strip().lower()
+    def log(self, message):
+        self.log_output.config(state='normal')
+        self.log_output.insert(tk.END, message + "\n")
+        self.log_output.config(state='disabled')
+        self.log_output.see(tk.END)
+
+    def choose_dicom_dir(self):
+        path = filedialog.askdirectory()
+        if path:
+            self.dicom_dir_entry.delete(0, tk.END)
+            self.dicom_dir_entry.insert(0, os.path.normpath(path))
+
+    def choose_output_dir(self):
+        path = filedialog.askdirectory()
+        if path:
+            self.output_dir_entry.delete(0, tk.END)
+            self.output_dir_entry.insert(0, os.path.normpath(path))
+
+    def start_pipeline(self):
+        dicom_path = self.dicom_dir_entry.get()
+        out_path = self.output_dir_entry.get()
+        organ = self.organ_entry.get().strip().lower()
 
         if not all([dicom_path, out_path, organ]):
-            log("하나는 전체를 위해 전체는 하나를 위해 그러니까 다 채워봐!!!!!!!!")
+            messagebox.showwarning("경고", "하나는 전체를 위해 전체는 하나를 위해 그러니까 다 채워봐!!!!!!!!")
             return
 
-        os.makedirs(out_path, exist_ok=True) 
+        os.makedirs(out_path, exist_ok=True)
 
-        log("두근두근 Segmentation 시작")
+        self.log("두근두근 Segmentation 시작")
         success = run_TS(dicom_path, out_path, organ)
         if not success:
-            log("또또또 Totalsegmentator 실수했네")
+            self.log("또또또 Totalsegmentator 실수했네")
             return
 
         nii_path = os.path.join(out_path, f"{organ}.nii.gz")
         stl_path = os.path.join(out_path, f"{organ}.stl")
 
-        log("두근두근 STL 변환 중")
+        self.log("두근두근 STL 변환 중")
         if nii_mask_2_stl(nii_path, stl_path):
-            log(f"역시 난 똑띠야: {stl_path}")
+            self.log(f"역시 난 똑띠야: {stl_path}")
         else:
-            log("또또또 실수했네")
+            self.log("또또또 실수했네")
 
-    page.add(
-        ft.Row([
-            dicom_dir,
-            ft.IconButton(icon=ft.icons.FOLDER_OPEN, on_click=choose_dicom_dir)
-        ]),
-        ft.Row([
-            output_dir,
-            ft.IconButton(icon=ft.icons.FOLDER_OPEN, on_click=choose_output_dir)
-        ]),
-        organ_field,
-        ft.ElevatedButton("누르면 시작", on_click=start_pipeline),
-        log_output
-    )
-
-ft.app(target=main)
-
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = PyramidApp(root)
+    root.mainloop()
